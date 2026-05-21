@@ -327,7 +327,7 @@ WHAT JUST HAPPENED
  │   └── <domain>/
  │       └── spec.md ← Stub files created for each detected stack area.
  ├── changes/        ← One folder per in-flight feature/fix.
- └── config.yaml     ← Project config (tool = github-copilot, profile = core).
+ └── config.yaml     ← Project config (tool = github-copilot, profile = extended).
 
  .github/
  ├── skills/         ← OpenSpec skill files Copilot reads automatically.
