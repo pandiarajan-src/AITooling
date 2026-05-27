@@ -174,15 +174,40 @@ def resolve_repo_path(arg: str | None) -> Path:
         sys.exit(1)
     return p
 
+def _load_stack_indicators() -> dict[str, list[str]]:
+    """Read stack indicators from config.md (JSON code block) next to this script.
+
+    Falls back to built-in defaults when the file is missing or unparseable.
+    """
+    import json
+    import re
+
+    config_path = Path(__file__).parent / "config.md"
+    if config_path.exists():
+        text = config_path.read_text(encoding="utf-8")
+        match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError as exc:
+                warn(f"config.md JSON parse error: {exc} – using built-in defaults")
+        else:
+            warn("config.md has no JSON block – using built-in defaults")
+    else:
+        warn("config.md not found – using built-in defaults")
+
+    return {
+        "C# / .NET":      ["*.csproj", "*.sln", "*.cs"],
+        "Swift / iOS":    ["*.xcodeproj", "*.xcworkspace", "*.swift"],
+        "Angular / Node": ["angular.json", "package.json", "*.ts"],
+        "PowerShell":     ["*.ps1", "*.psm1"],
+        "VC++":           ["*.vcxproj", "*.cpp", "*.h"],
+    }
+
+
 def detect_stack(repo: Path) -> str:
     """Heuristic stack detection for brownfield repos."""
-    indicators = {
-        "C# / .NET": ["*.csproj", "*.sln", "*.cs"],
-        "Swift / iOS": ["*.xcodeproj", "*.xcworkspace", "*.swift"],
-        "Angular / Node": ["angular.json", "package.json", "*.ts"],
-        "PowerShell": ["*.ps1", "*.psm1"],
-        "VC++": ["*.vcxproj", "*.cpp", "*.h"],
-    }
+    indicators = _load_stack_indicators()
     detected = []
     for stack, patterns in indicators.items():
         for pat in patterns:
