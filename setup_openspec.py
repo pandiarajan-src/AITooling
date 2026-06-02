@@ -16,7 +16,6 @@ Requirements:
 """
 
 import sys
-import os
 import subprocess
 import shutil
 import argparse
@@ -76,6 +75,7 @@ def _run(cmd: list[str], capture: bool = True, cwd: Path | None = None) -> subpr
         capture_output=capture,
         text=True,
         cwd=str(cwd) if cwd else None,
+        shell=platform.system() == "Windows",
     )
 
 def check_node() -> bool:
@@ -174,54 +174,9 @@ def resolve_repo_path(arg: str | None) -> Path:
         sys.exit(1)
     return p
 
-def _load_stack_indicators() -> dict[str, list[str]]:
-    """Read stack indicators from config.md (JSON code block) next to this script.
-
-    Falls back to built-in defaults when the file is missing or unparseable.
-    """
-    import json
-    import re
-
-    config_path = Path(__file__).parent / "config.md"
-    if config_path.exists():
-        text = config_path.read_text(encoding="utf-8")
-        match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError as exc:
-                warn(f"config.md JSON parse error: {exc} – using built-in defaults")
-        else:
-            warn("config.md has no JSON block – using built-in defaults")
-    else:
-        warn("config.md not found – using built-in defaults")
-
-    return {
-        "C# / .NET":      ["*.csproj", "*.sln", "*.cs"],
-        "Swift / iOS":    ["*.xcodeproj", "*.xcworkspace", "*.swift"],
-        "Angular / Node": ["angular.json", "package.json", "*.ts"],
-        "PowerShell":     ["*.ps1", "*.psm1"],
-        "VC++":           ["*.vcxproj", "*.cpp", "*.h"],
-    }
-
-
-def detect_stack(repo: Path) -> str:
-    """Heuristic stack detection for brownfield repos."""
-    indicators = _load_stack_indicators()
-    detected = []
-    for stack, patterns in indicators.items():
-        for pat in patterns:
-            if list(repo.rglob(pat)):
-                detected.append(stack)
-                break
-    return ", ".join(detected) if detected else "Unknown / not detected"
-
 def init_openspec(repo: Path) -> bool:
     section("Initialising OpenSpec in repository")
     info(f"Repository : {repo}")
-
-    stack = detect_stack(repo)
-    info(f"Stack detected : {stack}")
 
     openspec_dir = repo / "openspec"
     if openspec_dir.exists():
@@ -244,92 +199,6 @@ def init_openspec(repo: Path) -> bool:
         return False
 
     ok("OpenSpec initialised successfully")
-    return True
-
-# ─── Brownfield onboarding scaffold ──────────────────────────────────────────
-
-BROWNFIELD_DOMAINS = {
-    "C# / .NET":    ["printer-communication", "device-discovery", "configuration-management"],
-    "Swift / iOS":  ["ui", "networking", "data-sync"],
-    "Angular / Node": ["ui", "api-client", "auth"],
-    "PowerShell":   ["automation", "deployment"],
-    "VC++":         ["driver", "hardware-interface"],
-}
-
-SPEC_TEMPLATE = """\
-# Spec: {domain_title}
-
-> **Status:** Brownfield baseline – reverse-engineered from existing codebase  
-> **Last updated:** {date}
-
----
-
-## Overview
-
-Describe what this capability does and its role in the system.  
-*(Fill this in based on code review / existing documentation.)*
-
----
-
-## Requirements
-
-### Requirement: [REQ-{AREA}-0001] Placeholder – Replace with real requirement
-
-The system SHALL *(describe the behaviour)*.
-
-#### Scenario: Happy path
-
-- GIVEN *(initial context)*
-- WHEN *(action or event)*
-- THEN *(expected outcome)*
-
----
-
-## Open Questions
-
-- [ ] *(List any unknowns discovered during reverse engineering)*
-
----
-
-## References
-
-- Source files: `*(add paths)*`
-- ADO work items: *(link if available)*
-"""
-
-def create_brownfield_scaffold(repo: Path, stacks: list[str]) -> bool:
-    section("Creating brownfield spec scaffold")
-
-    specs_dir = repo / "openspec" / "specs"
-    specs_dir.mkdir(parents=True, exist_ok=True)
-
-    from datetime import date
-    today = date.today().isoformat()
-
-    created = 0
-    for stack in stacks:
-        domains = BROWNFIELD_DOMAINS.get(stack, ["general"])
-        for domain in domains:
-            domain_dir = specs_dir / domain
-            spec_file = domain_dir / "spec.md"
-            if spec_file.exists():
-                dim(f"Skipped (exists): openspec/specs/{domain}/spec.md")
-                continue
-            domain_dir.mkdir(parents=True, exist_ok=True)
-            area = domain.upper().replace("-", "_")[:8]
-            title = domain.replace("-", " ").title()
-            spec_file.write_text(
-                SPEC_TEMPLATE.format(domain_title=title, AREA=area, date=today),
-                encoding="utf-8",
-            )
-            ok(f"Created: openspec/specs/{domain}/spec.md")
-            created += 1
-
-    if created == 0:
-        info("All spec stubs already exist – nothing new created.")
-    else:
-        ok(f"{created} spec stub(s) created")
-
     return True
 
 # ─── Post-init guidance ───────────────────────────────────────────────────────
@@ -455,11 +324,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run prerequisite checks only – no install or init.",
     )
-    p.add_argument(
-        "--no-scaffold",
-        action="store_true",
-        help="Skip creating brownfield spec stubs.",
-    )
     return p.parse_args()
 
 def main():
@@ -487,17 +351,6 @@ def main():
     # Init
     if not init_openspec(repo):
         sys.exit(1)
-
-    # Brownfield scaffold
-    if not args.no_scaffold:
-        # Re-detect stack to pass split list
-        raw_stack = detect_stack(repo)
-        stacks = [s.strip() for s in raw_stack.split(",") if s.strip()]
-        if stacks and stacks[0] != "Unknown / not detected":
-            create_brownfield_scaffold(repo, stacks)
-        else:
-            warn("Stack not detected – skipping spec stub generation.")
-            info("Run with a populated repo, or create openspec/specs/<domain>/spec.md manually.")
 
     # Print guidance
     section("Setup complete")
