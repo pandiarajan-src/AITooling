@@ -22,6 +22,9 @@ import argparse
 import platform
 from pathlib import Path
 
+# Directory containing this script (used to locate template files)
+SCRIPT_DIR = Path(__file__).parent
+
 # ─── Colour helpers (gracefully degraded on Windows without ANSI support) ────
 
 RESET  = "\033[0m"
@@ -201,6 +204,55 @@ def init_openspec(repo: Path) -> bool:
     ok("OpenSpec initialised successfully")
     return True
 
+# ─── Custom prompt deployment ─────────────────────────────────────────────────
+
+TEMPLATES_DIR = SCRIPT_DIR / "scripts" / "templates"
+
+def deploy_custom_prompts(repo: Path) -> bool:
+    """Copy capability-discovery prompt templates and copilot-instructions into the target repo."""
+    section("Deploying capability-discovery prompts")
+
+    prompts_src = TEMPLATES_DIR / "prompts"
+    if not prompts_src.is_dir():
+        warn(f"Templates directory not found: {prompts_src}")
+        warn("Skipping custom prompt deployment – prompts must be added manually.")
+        return True  # non-fatal
+
+    prompts_dst = repo / ".github" / "prompts"
+    prompts_dst.mkdir(parents=True, exist_ok=True)
+
+    deployed: list[str] = []
+    skipped: list[str] = []
+
+    for src_file in sorted(prompts_src.glob("*.prompt.md")):
+        dst_file = prompts_dst / src_file.name
+        if dst_file.exists():
+            skipped.append(src_file.name)
+        else:
+            shutil.copy2(src_file, dst_file)
+            deployed.append(src_file.name)
+
+    for name in deployed:
+        ok(f"Deployed  → .github/prompts/{name}")
+    for name in skipped:
+        dim(f"Exists, skipped → .github/prompts/{name}")
+
+    # copilot-instructions.md: deploy only if the file does not exist yet
+    ci_src = TEMPLATES_DIR / "copilot-instructions.md"
+    ci_dst = repo / ".github" / "copilot-instructions.md"
+    if ci_src.is_file():
+        if ci_dst.exists():
+            dim("Exists, skipped → .github/copilot-instructions.md")
+        else:
+            ci_dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ci_src, ci_dst)
+            ok("Deployed  → .github/copilot-instructions.md")
+
+    if deployed:
+        info("Custom prompts are available as slash commands in VS Code Copilot Chat.")
+        info("Start with:  /opsx-discover-capabilities")
+    return True
+
 # ─── Post-init guidance ───────────────────────────────────────────────────────
 
 GUIDANCE = """
@@ -229,24 +281,33 @@ WHAT JUST HAPPENED
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PHASE 1 – FILL THE MAP (Brownfield baseline, do once per repo)
-──────────────────────────────────────────────────────────────
-The spec stubs in openspec/specs/ are empty. Fill them by having
-Copilot reverse-engineer each capability from your existing code.
+PHASE 1 – DISCOVER CAPABILITIES (do once, you are new to the repo)
+───────────────────────────────────────────────────────────────────
+If you don't know what business capabilities exist in the codebase,
+have Copilot discover them for you first.
 
-In VS Code Copilot Chat, run:
+In VS Code Copilot Chat (agent mode), run:
 
-  @workspace /opsx:onboard
+  /opsx-discover-capabilities
 
-This instructs Copilot to analyse the codebase and populate the
-spec stubs for you. Review and adjust – Copilot will miss nuance.
+Copilot will scan the entire codebase, infer business domains, and
+create a domain-map.yaml at the repo root. Review that file before
+proceeding — correct any misidentified capabilities.
 
-Do this per domain (e.g., printer-communication, device-discovery)
-rather than all at once. One domain = one Copilot session.
+PHASE 2 – FILL THE MAP (one domain per Copilot session)
+────────────────────────────────────────────────────────
+For each domain in domain-map.yaml, run two commands (separately):
+
+  /opsx-onboard-domain       ← generates functional spec.md
+  /opsx-reverse-nfr          ← generates NFR spec from code patterns
+
+Do one domain at a time. Clear Copilot context between domains.
+After each domain: review the spec, fill in [PLACEHOLDER] values
+(NFR targets), and resolve TODO(EM-REVIEW) comments.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PHASE 2 – EVERYDAY WORKFLOW (per new feature or fix)
+PHASE 3 – EVERYDAY WORKFLOW (per new feature or fix)
 ─────────────────────────────────────────────────────
 1. PROPOSE  → agree on what to build before writing any code
    In Copilot Chat:  /opsx:propose <feature-description>
@@ -324,6 +385,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run prerequisite checks only – no install or init.",
     )
+    p.add_argument(
+        "--no-prompts",
+        action="store_true",
+        help="Skip deploying custom capability-discovery prompt templates.",
+    )
     return p.parse_args()
 
 def main():
@@ -351,6 +417,10 @@ def main():
     # Init
     if not init_openspec(repo):
         sys.exit(1)
+
+    # Deploy custom prompts
+    if not args.no_prompts:
+        deploy_custom_prompts(repo)
 
     # Print guidance
     section("Setup complete")
