@@ -176,6 +176,8 @@ Create it if absent before writing.
 
 ### Step 4.2 — Document structure
 
+Use [`archlens-template.md`](./assets/archlens-template.md) as the structural scaffold. Fill each section with findings from Phase 3. Every section must be complete — no `TODO`, `TBD`, or placeholder text.
+
 Produce the file in this exact section order:
 
 ```
@@ -189,6 +191,7 @@ Produce the file in this exact section order:
 ## 8. Dependencies & Environment
 ## 9. Changelog            ← UPDATE MODE only
 ## 10. Open Questions
+## 11. Summary
 ```
 
 #### Section writing rules
@@ -248,6 +251,11 @@ Produce the file in this exact section order:
 - Bullet list of unresolved ambiguities requiring human review
 - Include all `⚠️ Requires verification` items surfaced during analysis
 
+**§11 Summary**
+- 3–5 sentences covering: what the project is, what it does, how it does it
+- Audience: product owners and new engineers — no jargon, no marketing language
+- Written after all other sections are complete so it accurately reflects findings
+
 ### Step 4.3 — Save snapshot alongside the document (both modes)
 
 After the document is written, persist the current repo snapshot so future UPDATE MODE runs can diff against it:
@@ -282,7 +290,7 @@ Before saving the file, verify:
 - [ ] In UPDATE MODE: snapshot diff run (if prior snapshot existed); only changed components re-analysed
 - [ ] `docs/archlens_snapshot.json` written after document is saved
 - [ ] Tech stack sourced from `stack.json`, not guessed
-- [ ] All 10 sections present and non-empty (§9 only in UPDATE MODE)
+- [ ] All 11 sections present and non-empty (§9 only in UPDATE MODE)
 - [ ] Every component has a stated responsibility
 - [ ] At least one complete end-to-end data flow documented with a Mermaid diagram
 - [ ] Build/run commands are verbatim from config files
