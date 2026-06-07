@@ -191,9 +191,9 @@ def init_openspec(repo: Path) -> bool:
             info("Skipping init – existing openspec/ left intact.")
             return True
 
-    info("Running: openspec init --tools github-copilot --profile extended")
+    info("Running: openspec init --tools github-copilot --profile core")
     result = _run(
-        ["openspec", "init", "--tools", "github-copilot", "--profile", "extended"],
+        ["openspec", "init", "--tools", "github-copilot", "--profile", "core"],
         capture=False,
         cwd=repo,
     )
@@ -273,7 +273,7 @@ WHAT JUST HAPPENED
  │   └── <domain>/
  │       └── spec.md ← Stub files created for each detected stack area.
  ├── changes/        ← One folder per in-flight feature/fix.
- └── config.yaml     ← Project config (tool = github-copilot, profile = extended).
+ └── config.yaml     ← Project config (tool = github-copilot, profile = core).
 
  .github/
  ├── skills/         ← OpenSpec skill files Copilot reads automatically.
