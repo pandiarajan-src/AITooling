@@ -1,7 +1,6 @@
 ---
 mode: 'agent'
 description: 'Full OpenSpec onboarding workflow: capability discovery → functional spec → NFR spec for one domain per session. Picks up where you left off.'
-tools: ['codebase']
 ---
 
 Run the **full OpenSpec brownfield onboarding workflow** for this repository. This command is state-aware — it detects what has already been done and continues from where you left off.

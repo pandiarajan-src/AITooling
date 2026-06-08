@@ -1,7 +1,6 @@
 ---
 mode: 'agent'
 description: 'Generate a functional OpenSpec spec.md for one business capability domain from existing code'
-tools: ['codebase']
 ---
 
 Generate a **functional specification** in OpenSpec format for a specific business capability domain by reverse-engineering behavior from the existing codebase.

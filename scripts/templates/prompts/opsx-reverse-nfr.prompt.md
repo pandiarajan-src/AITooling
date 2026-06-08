@@ -1,7 +1,6 @@
 ---
 mode: 'agent'
 description: 'Generate non-functional requirements from code patterns for a domain or the whole system'
-tools: ['codebase']
 ---
 
 Generate **non-functional requirements (NFRs)** in OpenSpec format by scanning code for signals of performance, security, reliability, scalability, and observability intent.

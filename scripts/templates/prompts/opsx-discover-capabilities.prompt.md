@@ -1,7 +1,6 @@
 ---
 mode: 'agent'
 description: 'Scan the codebase and generate a domain-map.yaml identifying business capabilities'
-tools: ['codebase']
 ---
 
 Perform a **capability discovery analysis** of this codebase. Your goal is to identify what business capabilities the software provides and organise them into logical domains suitable for OpenSpec specification.
