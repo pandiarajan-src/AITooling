@@ -209,8 +209,8 @@ def init_openspec(repo: Path) -> bool:
 TEMPLATES_DIR = SCRIPT_DIR / "scripts" / "templates"
 
 def deploy_custom_prompts(repo: Path) -> bool:
-    """Copy capability-discovery prompt templates and copilot-instructions into the target repo."""
-    section("Deploying capability-discovery prompts")
+    """Copy prompt templates, skill files, and copilot-instructions into the target repo."""
+    section("Deploying capability-discovery prompts and skills")
 
     prompts_src = TEMPLATES_DIR / "prompts"
     if not prompts_src.is_dir():
@@ -218,6 +218,7 @@ def deploy_custom_prompts(repo: Path) -> bool:
         warn("Skipping custom prompt deployment – prompts must be added manually.")
         return True  # non-fatal
 
+    # ── Prompts ──────────────────────────────────────────────────────────────
     prompts_dst = repo / ".github" / "prompts"
     prompts_dst.mkdir(parents=True, exist_ok=True)
 
@@ -237,7 +238,25 @@ def deploy_custom_prompts(repo: Path) -> bool:
     for name in skipped:
         dim(f"Exists, skipped → .github/prompts/{name}")
 
-    # copilot-instructions.md: deploy only if the file does not exist yet
+    # ── Skills ───────────────────────────────────────────────────────────────
+    skills_src = TEMPLATES_DIR / "skills"
+    if skills_src.is_dir():
+        for skill_dir in sorted(skills_src.iterdir()):
+            if not skill_dir.is_dir():
+                continue
+            skill_file = skill_dir / "SKILL.md"
+            if not skill_file.is_file():
+                continue
+            dst_skill_dir = repo / ".github" / "skills" / skill_dir.name
+            dst_skill_file = dst_skill_dir / "SKILL.md"
+            if dst_skill_file.exists():
+                dim(f"Exists, skipped → .github/skills/{skill_dir.name}/SKILL.md")
+            else:
+                dst_skill_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(skill_file, dst_skill_file)
+                ok(f"Deployed  → .github/skills/{skill_dir.name}/SKILL.md")
+
+    # ── copilot-instructions.md ───────────────────────────────────────────────
     ci_src = TEMPLATES_DIR / "copilot-instructions.md"
     ci_dst = repo / ".github" / "copilot-instructions.md"
     if ci_src.is_file():
@@ -250,7 +269,8 @@ def deploy_custom_prompts(repo: Path) -> bool:
 
     if deployed:
         info("Custom prompts are available as slash commands in VS Code Copilot Chat.")
-        info("Start with:  /opsx-discover-capabilities")
+        info("Start with:  /opsx-full-onboard  (full workflow, state-aware)")
+        info("  or step-by-step:  /opsx-discover-capabilities → /opsx-onboard-domain → /opsx-reverse-nfr")
     return True
 
 # ─── Post-init guidance ───────────────────────────────────────────────────────
@@ -276,32 +296,37 @@ WHAT JUST HAPPENED
  └── config.yaml     ← Project config (tool = github-copilot, profile = core).
 
  .github/
- ├── skills/         ← OpenSpec skill files Copilot reads automatically.
+ ├── skills/         ← OpenSpec + custom onboarding skill files Copilot reads automatically.
+ │   └── openspec-custom-onboard/SKILL.md
  └── prompts/        ← /opsx-* slash commands for Copilot Chat.
+     ├── opsx-full-onboard.prompt.md       ← START HERE (orchestrates all steps)
+     ├── opsx-discover-capabilities.prompt.md
+     ├── opsx-onboard-domain.prompt.md
+     └── opsx-reverse-nfr.prompt.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PHASE 1 – DISCOVER CAPABILITIES (do once, you are new to the repo)
-───────────────────────────────────────────────────────────────────
-If you don't know what business capabilities exist in the codebase,
-have Copilot discover them for you first.
-
+PHASE 1 – ONBOARD THE REPO (state-aware, resumable)
+────────────────────────────────────────────────────
 In VS Code Copilot Chat (agent mode), run:
 
-  /opsx-discover-capabilities
+  /opsx-full-onboard
 
-Copilot will scan the entire codebase, infer business domains, and
-create a domain-map.yaml at the repo root. Review that file before
-proceeding — correct any misidentified capabilities.
+This single command is state-aware. It will:
+  • Run capability discovery (first time only) → creates domain-map.yaml
+  • For each run after that: generate a functional spec.md + NFR section
+    for one domain at a time.
 
-PHASE 2 – FILL THE MAP (one domain per Copilot session)
+Review domain-map.yaml before continuing. Correct any misidentified
+capabilities, then run /opsx-full-onboard again for each domain.
+Clear Copilot context between domain sessions.
+
+STEP-BY-STEP ALTERNATIVE (if you prefer manual control)
 ────────────────────────────────────────────────────────
-For each domain in domain-map.yaml, run two commands (separately):
+  /opsx-discover-capabilities  ← capability discovery only → domain-map.yaml
+  /opsx-onboard-domain         ← functional spec.md for one domain
+  /opsx-reverse-nfr            ← NFR section for one domain
 
-  /opsx-onboard-domain       ← generates functional spec.md
-  /opsx-reverse-nfr          ← generates NFR spec from code patterns
-
-Do one domain at a time. Clear Copilot context between domains.
 After each domain: review the spec, fill in [PLACEHOLDER] values
 (NFR targets), and resolve TODO(EM-REVIEW) comments.
 

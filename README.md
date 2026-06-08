@@ -10,10 +10,12 @@ can be stamped into target repositories without manual copying:
 
 | Asset | What it does |
 |---|---|
-| `.github/agents/` | Custom Copilot agent modes (Code Archaeologist, Software Steward) |
+| `.github/agents/` | Custom Copilot agent modes (Code Archaeologist) |
 | `.github/skills/detect-stack/` | Python script that detects the full tech stack of any repo and emits structured JSON |
 | `.github/skills/archlens/` | Skill + scripts for generating and diff-tracking `ARCHITECTURE.md` |
-| `scripts/templates/prompts/` | Slash-command prompt templates for OpenSpec capability discovery |
+| `.github/skills/openspec-custom-onboard/` | State-aware skill that orchestrates the full OpenSpec brownfield onboarding workflow |
+| `scripts/templates/skills/` | Skill templates deployed into target repos (currently: `openspec-custom-onboard`) |
+| `scripts/templates/prompts/` | Slash-command prompt templates — `/opsx-full-onboard` (orchestrator) + three step-by-step commands |
 | `scripts/templates/copilot-instructions.md` | Copilot workspace instructions template |
 
 Once deployed to a target repository every agent, skill, and prompt is immediately available
@@ -63,12 +65,13 @@ python deploy_tooling.py --check
 <target-repo>/
 ├── .github/
 │   ├── agents/
-│   │   ├── code-archaeologist.agent.md
-│   │   └── software-steward.agent.md
+│   │   └── code-archaeologist.agent.md
 │   ├── skills/
-│   │   ├── archlens/          ← full subtree
-│   │   └── detect-stack/      ← full subtree
+│   │   ├── archlens/                      ← full subtree
+│   │   ├── detect-stack/                  ← full subtree
+│   │   └── openspec-custom-onboard/       ← brownfield onboarding skill
 │   ├── prompts/
+│   │   ├── opsx-full-onboard.prompt.md           ← START HERE (orchestrates all steps)
 │   │   ├── opsx-discover-capabilities.prompt.md
 │   │   ├── opsx-onboard-domain.prompt.md
 │   │   └── opsx-reverse-nfr.prompt.md
@@ -105,8 +108,8 @@ python setup_openspec.py /path/to/target-repo --no-prompts
 
 1. Checks for Node.js 20.19.0+, npm, and git
 2. Installs (or updates) `@fission-ai/openspec@latest` globally
-3. Runs `openspec init --tools github-copilot --profile extended` in the target repo
-4. Deploys prompt templates to `.github/prompts/` (unless `--no-prompts`)
+3. Runs `openspec init --tools github-copilot --profile core` in the target repo
+4. Deploys prompt templates to `.github/prompts/` and the `openspec-custom-onboard` skill to `.github/skills/` (unless `--no-prompts`)
 5. Prints a brownfield quick-start guide
 
 ---
@@ -121,7 +124,8 @@ python deploy_tooling.py /path/to/my-repo
 This single command:
 1. Copies all agents, skills, and prompts into `.github/`
 2. Generates `stack.json` at the repo root (tech stack snapshot)
-3. Installs OpenSpec and scaffolds `openspec/specs/` with domain stubs
+3. Installs OpenSpec and scaffolds `openspec/specs/`
+4. Deploys the `openspec-custom-onboard` skill so the team can use `/opsx-full-onboard` immediately
 
 For repos where OpenSpec is already set up and you only want to refresh the AI assets:
 
@@ -131,20 +135,78 @@ python deploy_tooling.py /path/to/my-repo --no-openspec
 
 ---
 
+## OpenSpec brownfield onboarding
+
+After running `deploy_tooling.py` (or `setup_openspec.py`) on a repo, the team uses these
+slash commands in **VS Code Copilot Chat (agent mode)**:
+
+### Recommended: single entry point
+
+```
+/opsx-full-onboard
+```
+
+This command is **state-aware and resumable**. Run it in any repo that has been set up with
+OpenSpec. It detects what has already been done and continues from where it left off:
+
+| Run | What happens |
+|---|---|
+| First run (no `domain-map.yaml`) | Scans the codebase, identifies business capability domains, writes `domain-map.yaml` — then **stops** for human review |
+| After reviewing `domain-map.yaml` | Generates a full `spec.md` (functional requirements + NFR section) for one domain, reports progress, tells you which domain is next |
+| Every subsequent run | Same — one domain per session. Clear Copilot context between domains. |
+
+**Team workflow:**
+
+```
+# Step 1 — set up the repo (you, once)
+python deploy_tooling.py /path/to/my-repo
+
+# Step 2 — in VS Code Copilot Chat on that repo (any team member)
+/opsx-full-onboard        ← run once to create domain-map.yaml, review it, then run again per domain
+
+# Step 3 — everyday development (any team member)
+/opsx:propose <feature>   ← agree on specs before writing code
+/opsx:apply               ← implement from tasks.md
+/opsx:archive             ← merge spec deltas into source-of-truth specs
+```
+
+### Step-by-step alternative (manual control)
+
+If you prefer to run each phase separately:
+
+| Command | What it does |
+|---|---|
+| `/opsx-discover-capabilities` | Scans the codebase and writes `domain-map.yaml` |
+| `/opsx-onboard-domain` | Generates a functional `spec.md` for one domain |
+| `/opsx-reverse-nfr` | Appends an NFR section to a domain's `spec.md` |
+
+Run one domain per Copilot session. Clear context between domains.
+
+---
+
 ## Repository structure
 
 ```
 AITooling/
 ├── .github/
-│   ├── agents/              ← agent definition files
+│   ├── agents/
+│   │   └── code-archaeologist.agent.md   ← reverse-engineer any repo into structured docs
 │   └── skills/
-│       ├── archlens/        ← architecture documentation skill
-│       └── detect-stack/    ← tech stack detection skill + script
+│       ├── archlens/                     ← architecture documentation skill
+│       ├── detect-stack/                 ← tech stack detection skill + script
+│       └── openspec-custom-onboard/      ← brownfield OpenSpec onboarding skill (also in templates)
 ├── scripts/
-│   ├── detect_stack.py      ← forwarding shim to .github/skills/detect-stack/
-│   └── templates/
+│   ├── detect_stack.py                   ← forwarding shim to .github/skills/detect-stack/
+│   └── templates/                        ← assets stamped into target repos by setup_openspec.py
 │       ├── copilot-instructions.md
-│       └── prompts/         ← OpenSpec slash-command templates
+│       ├── prompts/                      ← /opsx-* slash commands
+│       │   ├── opsx-full-onboard.prompt.md          ← orchestrator (start here)
+│       │   ├── opsx-discover-capabilities.prompt.md
+│       │   ├── opsx-onboard-domain.prompt.md
+│       │   └── opsx-reverse-nfr.prompt.md
+│       └── skills/
+│           └── openspec-custom-onboard/  ← skill template (deployed alongside prompts)
+│               └── SKILL.md
 ├── deploy_tooling.py        ← deploy all assets to a target repo
 ├── setup_openspec.py        ← install + init OpenSpec in a target repo
 └── pyproject.toml
