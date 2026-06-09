@@ -353,7 +353,7 @@ MULTI-REPO STRATEGY (your mixed stack situation)
 Run this script once per repo. Each repo gets its own openspec/
 directory with stack-specific domain folders:
 
-  C# / .NET repos   →  specs/printer-communication/, specs/device-discovery/
+  C# / .NET repos   →  specs/device-communication/, specs/device-discovery/
   Swift / iOS repos →  specs/ui/, specs/networking/
   Angular repos     →  specs/ui/, specs/api-client/
 
