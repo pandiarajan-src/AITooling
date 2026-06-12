@@ -1,0 +1,91 @@
+{
+  "repo_path": "C:\\workspace\\Ricoh\\driver-source\\Installer",
+  "detected_at": "2026-06-08T23:35:17.874263+00:00",
+  "languages": [
+    {
+      "name": "Java",
+      "confidence": "high",
+      "evidence": [
+        "build.gradle"
+      ]
+    },
+    {
+      "name": "C",
+      "confidence": "medium",
+      "file_count": 1,
+      "percent": 0.3,
+      "evidence": [
+        "extension census (1 files)"
+      ]
+    }
+  ],
+  "frameworks": [
+    {
+      "name": "Android SDK",
+      "category": "mobile",
+      "language": "Java/Kotlin",
+      "version": "3.0.1",
+      "confidence": "high",
+      "evidence": [
+        "build.gradle"
+      ]
+    }
+  ],
+  "build_scripts": [
+    {
+      "platform": "linux",
+      "type": "bash",
+      "files": [
+        "autobuild/ModuleBuild.sh"
+      ]
+    }
+  ],
+  "packaging_tools": [],
+  "build_tools": [
+    {
+      "name": "Gradle",
+      "confidence": "high",
+      "evidence": [
+        "build.gradle"
+      ]
+    }
+  ],
+  "test_frameworks": [
+    {
+      "name": "JUnit",
+      "category": "test",
+      "language": "Java/Kotlin",
+      "version": "4.12",
+      "confidence": "high",
+      "evidence": [
+        "build.gradle"
+      ]
+    }
+  ],
+  "build_ci": [],
+  "summary": "Java | C | Scripts: linux | Build: Gradle",
+  "_meta": {
+    "max_depth": 8,
+    "total_files_scanned": 452,
+    "ecosystems_detected": [
+      "java"
+    ],
+    "extension_census": {
+      ".java": 313,
+      ".xml": 78,
+      ".md": 19,
+      ".jar": 14,
+      ".txt": 7,
+      ".properties": 5,
+      ".csv": 2,
+      ".json": 2,
+      ".sh": 1,
+      ".gradle": 1,
+      ".mk": 1,
+      ".c": 1,
+      ".so": 1,
+      ".crt": 1,
+      ".bks": 1
+    }
+  }
+}
